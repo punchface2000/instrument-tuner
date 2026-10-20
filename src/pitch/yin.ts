@@ -75,8 +75,9 @@ export class YinDetector {
     this.energy = new Float64Array(this.frameSize + 1);
     this.d = new Float64Array(this.tauMax + 2);
     this.dn = new Float64Array(this.tauMax + 2);
-    // Linear (non-circular) correlation for lags 0…tauMax+1 needs size ≥ frameSize + W.
-    this.fft = new FFT(nextPow2(this.frameSize + this.windowSize));
+    // Window indices j < W plus lags τ ≤ tauMax+1 stay below frameSize, so a
+    // transform of frameSize (rounded up) never wraps around.
+    this.fft = new FFT(nextPow2(this.frameSize));
     this.aRe = new Float64Array(this.fft.size);
     this.aIm = new Float64Array(this.fft.size);
     this.xRe = new Float64Array(this.fft.size);
@@ -106,26 +107,29 @@ export class YinDetector {
 
     // Steps 1–2: difference function over a fixed window of W samples.
     // r(τ) = Σ_{j<W} x_j·x_{j+τ} is a cross-correlation of the first W samples
-    // with the whole frame, computed with FFTs: R = IFFT(conj(A)·X).
+    // with the whole frame, computed with FFTs: R = IFFT(conj(A)·X). Both
+    // inputs are real, so they share one complex FFT: z = a + i·x.
     const { fft, aRe, aIm, xRe, xIm } = this;
-    aRe.fill(0); aIm.fill(0); xIm.fill(0);
-    for (let j = 0; j < W; j++) aRe[j] = x[j];
-    xRe.set(x);
-    xRe.fill(0, frameSize);
-    fft.transform(aRe, aIm);
+    const N = fft.size;
+    xRe.fill(0); xIm.fill(0);
+    for (let j = 0; j < W; j++) xRe[j] = x[j];
+    xIm.set(x);
     fft.transform(xRe, xIm);
-    for (let k = 0; k < fft.size; k++) {
-      const re = aRe[k] * xRe[k] + aIm[k] * xIm[k]; // conj(A)·X
-      const im = aRe[k] * xIm[k] - aIm[k] * xRe[k];
-      xRe[k] = re; xIm[k] = im;
+    for (let k = 0; k < N; k++) {
+      const m = (N - k) & (N - 1);
+      const zr = xRe[k], zi = xIm[k], wr = xRe[m], wi = xIm[m];
+      const ar = (zr + wr) * 0.5, ai = (zi - wi) * 0.5; // A_k
+      const br = (zi + wi) * 0.5, bi = (wr - zr) * 0.5; // X_k
+      aRe[k] = ar * br + ai * bi; // conj(A)·X
+      aIm[k] = ar * bi - ai * br;
     }
-    fft.transform(xRe, xIm, true);
+    fft.transform(aRe, aIm, true);
     const scale = 1 / fft.size;
     const e0 = energy[W];
     const lastTau = tauMax + 1;
     d[0] = 0;
     for (let tau = 1; tau <= lastTau; tau++) {
-      const r = xRe[tau] * scale;
+      const r = aRe[tau] * scale;
       const eTau = energy[tau + W] - energy[tau];
       d[tau] = Math.max(0, e0 + eTau - 2 * r);
     }

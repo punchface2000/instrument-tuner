@@ -467,7 +467,7 @@ function render() {
     // Needle: critically-damped follow, pinned at the scale ends.
     const target = clamp(r.cents, -50, 50);
     if (reducedMotion.matches) needleCents = target;
-    else needleCents += (target - needleCents) * (1 - Math.exp(-dt * 18));
+    else needleCents += (target - needleCents) * (1 - Math.exp(-dt * 28));
   } else {
     el.noteLetter.textContent = listening ? (lastLetter() ?? '') : '';
     el.noteAcc.textContent = '';

@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "bench": "tsx bench/harness.ts"
+    "bench": "tsx bench/harness.ts",
+    "bench:live": "tsx bench/responsiveness.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

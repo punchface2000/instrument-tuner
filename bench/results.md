@@ -75,5 +75,5 @@ The pre-filter follows the detected note: a first pass finds the note, then the 
 
 ## Speed (this machine, Node)
 
-- Legacy: 19.49 ms per frame, one result every 200 ms (0.2 s frames)
-- New: 0.72 ms per frame; frames can overlap, so 20–40 results per second are practical
+- Legacy: 18.72 ms per frame, one result every 200 ms (0.2 s frames)
+- New: 0.29 ms per frame; frames can overlap, so 20–40 results per second are practical

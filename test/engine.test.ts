@@ -84,4 +84,44 @@ describe('TunerEngine', () => {
     const gone = stream(e, 0, 1.5)!;
     expect(gone.active).toBe(false);
   });
+
+  it('keeps tracking a quiet, decaying note without gaps', () => {
+    const e = new TunerEngine(SR, base);
+    const n = 3 * SR;
+    const sig = tone({ freq: f('A2'), sampleRate: SR, length: n, partials: PLUCK, decay: 1.6, peak: 0.0125, snrDb: 30, seed: 4 });
+    let live = 0, total = 0, maxErr = 0;
+    for (let i = 0; i < n; i += 1024) {
+      const r = e.push(Float32Array.from(sig.subarray(i, i + 1024)));
+      if (!r || i < 0.3 * SR) continue;
+      total++;
+      if (r.active && !r.held) {
+        live++;
+        maxErr = Math.max(maxErr, Math.abs(r.cents));
+      }
+    }
+    expect(live / total).toBeGreaterThan(0.95);
+    expect(maxErr).toBeLessThan(5);
+  });
+
+  it('follows the pitch continuously while the peg is turned', () => {
+    const e = new TunerEngine(SR, base);
+    const n = 3 * SR;
+    const sig = new Float32Array(n);
+    let ph = 0;
+    for (let i = 0; i < n; i++) {
+      const c = -40 + (40 * i) / n; // −40 → 0 cents
+      ph += (2 * Math.PI * f('D3') * 2 ** (c / 1200)) / SR;
+      sig[i] = 0.2 * (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.3 * Math.sin(3 * ph));
+    }
+    const seen: number[] = [];
+    for (let i = 0; i < n; i += 1024) {
+      const r = e.push(sig.subarray(i, i + 1024));
+      if (r?.active && !r.held) seen.push(r.cents);
+    }
+    expect(seen.length).toBeGreaterThan(100);
+    // readings move steadily from flat towards zero
+    expect(seen[5]).toBeLessThan(-30);
+    expect(seen[seen.length - 1]).toBeGreaterThan(-4);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]).toBeGreaterThan(seen[i - 1] - 2);
+  });
 });

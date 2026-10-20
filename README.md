@@ -60,6 +60,21 @@ It appears as a new tab. The detection range and filter settings are derived fro
 
 The new detector also rejects white noise, which the original reported as a pitch. It is also over 20× faster per frame (FFT-based), and its frames are shorter: 46 ms for guitar instead of 200 ms.
 
+### Live responsiveness
+
+`npm run bench:live` streams simulated microphone recordings through the live engine and writes [`bench/responsiveness.md`](bench/responsiveness.md). The recordings include a pick attack, a decay down to the room noise, and a peg being turned while re-plucking.
+
+| While the string rings | Before | Now |
+|---|---|---|
+| Reading on screen, loud pluck | 90–92% | 98–100% |
+| Reading on screen, quiet phone mic | 11–19% | 98–100% |
+| Dropouts (reading vanished mid-note) | 6–27 per run | 0 |
+| First reading after a pluck | 20–85 ms | 20–90 ms |
+
+The engine learns the room's noise floor and follows a note down to it. Once a note is being tracked, noisier frames that agree with it continue it, while a new note needs a clean detection. Smoothing gets stronger as the note fades.
+
+**Known limitation:** strong mains hum (50/60 Hz) on a wired setup interferes with bass E1 and A1, whose pitches sit close to it. Phones on battery are not affected.
+
 ## Development
 
 Requires [Node.js](https://nodejs.org) 20 or newer.
@@ -69,6 +84,7 @@ npm install
 npm run dev       # live-reloading app at http://localhost:5173
 npm test          # unit tests
 npm run bench     # algorithm benchmark → bench/results.md
+npm run bench:live  # live responsiveness benchmark → bench/responsiveness.md
 npm run build     # one self-contained file: dist/index.html
 ```
 

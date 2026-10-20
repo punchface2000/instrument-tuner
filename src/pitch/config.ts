@@ -7,7 +7,12 @@ export interface DetectorConfig {
   yin: YinOptions;
   /** Low-pass cutoff for the streaming pre-filter (Hz). */
   lowpassHz: number;
+  /** High-pass cutoff for the streaming pre-filter (Hz). */
+  highpassHz: number;
 }
+
+/** High-pass cutoff as a fraction of the lowest frequency searched for. */
+export const HIGHPASS_FACTOR = 0.6;
 
 /** Low-pass cutoff as a multiple of the highest fundamental searched for. */
 export const LOWPASS_FACTOR = 6;
@@ -38,5 +43,6 @@ export function detectorConfig(sampleRate: number, fMin: number, fMax: number, t
       windowSize: Math.max(WINDOW_PERIODS * tauMax, Math.round(sampleRate * 0.0213)),
     },
     lowpassHz: Math.min(LOWPASS_FACTOR * fMax, 0.45 * sampleRate),
+    highpassHz: Math.max(20, HIGHPASS_FACTOR * fMin),
   };
 }
