@@ -5,6 +5,8 @@
 //   4.   absolute threshold, then descend to the local minimum
 //   5.   parabolic interpolation around the minimum
 //
+import { FFT, nextPow2 } from './fft';
+
 // All buffers are allocated once in the constructor so detect() does not
 // allocate, which keeps it safe to call ~20–50 times per second.
 
@@ -50,6 +52,11 @@ export class YinDetector {
   private readonly energy: Float64Array; // prefix sums of x²
   private readonly d: Float64Array;
   private readonly dn: Float64Array;
+  private readonly fft: FFT;
+  private readonly aRe: Float64Array;
+  private readonly aIm: Float64Array;
+  private readonly xRe: Float64Array;
+  private readonly xIm: Float64Array;
 
   constructor(opts: YinOptions) {
     const { sampleRate, fMin, fMax } = opts;
@@ -68,6 +75,12 @@ export class YinDetector {
     this.energy = new Float64Array(this.frameSize + 1);
     this.d = new Float64Array(this.tauMax + 2);
     this.dn = new Float64Array(this.tauMax + 2);
+    // Linear (non-circular) correlation for lags 0…tauMax+1 needs size ≥ frameSize + W.
+    this.fft = new FFT(nextPow2(this.frameSize + this.windowSize));
+    this.aRe = new Float64Array(this.fft.size);
+    this.aIm = new Float64Array(this.fft.size);
+    this.xRe = new Float64Array(this.fft.size);
+    this.xIm = new Float64Array(this.fft.size);
   }
 
   /** Analyse the last `frameSize` samples of `input`. */
@@ -92,12 +105,27 @@ export class YinDetector {
     if (!(rms >= this.minRms)) return { freq: NaN, confidence: 0, rms, voiced: false };
 
     // Steps 1–2: difference function over a fixed window of W samples.
+    // r(τ) = Σ_{j<W} x_j·x_{j+τ} is a cross-correlation of the first W samples
+    // with the whole frame, computed with FFTs: R = IFFT(conj(A)·X).
+    const { fft, aRe, aIm, xRe, xIm } = this;
+    aRe.fill(0); aIm.fill(0); xIm.fill(0);
+    for (let j = 0; j < W; j++) aRe[j] = x[j];
+    xRe.set(x);
+    xRe.fill(0, frameSize);
+    fft.transform(aRe, aIm);
+    fft.transform(xRe, xIm);
+    for (let k = 0; k < fft.size; k++) {
+      const re = aRe[k] * xRe[k] + aIm[k] * xIm[k]; // conj(A)·X
+      const im = aRe[k] * xIm[k] - aIm[k] * xRe[k];
+      xRe[k] = re; xIm[k] = im;
+    }
+    fft.transform(xRe, xIm, true);
+    const scale = 1 / fft.size;
     const e0 = energy[W];
     const lastTau = tauMax + 1;
     d[0] = 0;
     for (let tau = 1; tau <= lastTau; tau++) {
-      let r = 0;
-      for (let j = 0; j < W; j++) r += x[j] * x[j + tau];
+      const r = xRe[tau] * scale;
       const eTau = energy[tau + W] - energy[tau];
       d[tau] = Math.max(0, e0 + eTau - 2 * r);
     }

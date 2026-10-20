@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Instrument Tuner</title>
+    <meta name="description" content="Tune guitar, ukulele, bass and violin with your microphone, or find any note in chromatic mode." />
+    <meta name="theme-color" content="#241612" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#EEF0EE" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23241612'/%3E%3Cpath d='M16 5v22' stroke='%23D9A441' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M8 21h16' stroke='%23F1E8DA' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <nav class="views" id="views" aria-label="Instrument"></nav>
+        <div class="tools">
+          <button class="icon-btn" id="settings-btn" type="button" aria-label="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2.25" /><circle cx="10" cy="17" r="2.25" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="stage" id="stage" data-state="idle">
+        <section class="reading" aria-label="Tuner reading">
+          <div class="note" id="note" aria-hidden="true">
+            <span class="note-letter" id="note-letter">–</span>
+            <span class="note-mods">
+              <span class="note-acc" id="note-acc"></span>
+              <span class="note-oct" id="note-oct"></span>
+            </span>
+          </div>
+
+          <div class="scale" id="scale" aria-hidden="true">
+            <div class="scale-zone" id="scale-zone"></div>
+            <div class="scale-ticks" id="scale-ticks"></div>
+            <div class="needle" id="needle"><span class="needle-head"></span></div>
+            <div class="scale-labels"><span>−50</span><span>−25</span><span>0</span><span>+25</span><span>+50</span></div>
+          </div>
+
+          <p class="direction" id="direction"></p>
+          <p class="detail"><span id="detail-cents"></span><span id="detail-hz"></span></p>
+          <p class="sr-only" id="live" aria-live="polite"></p>
+
+          <div class="start" id="start">
+            <button class="start-btn" id="start-btn" type="button"></button>
+            <p class="start-hint" id="start-hint"></p>
+            <p class="error" id="error" role="alert" hidden></p>
+          </div>
+        </section>
+
+        <section class="strings" id="strings-section">
+          <div class="pegs" id="pegs" role="group" aria-label="Strings"></div>
+          <div class="string-tools">
+            <p class="string-hint" id="string-hint"></p>
+            <button class="play-btn" id="play-btn" type="button" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9.5h3l4.5-4v13L8 14.5H5z" /><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" /></svg>
+              <span id="play-label"></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="meters" aria-label="Signal">
+          <div class="meter">
+            <span class="meter-label" id="level-label"></span>
+            <span class="meter-track"><span class="meter-fill" id="level-fill"></span></span>
+          </div>
+          <div class="meter">
+            <span class="meter-label" id="clarity-label"></span>
+            <span class="meter-track"><span class="meter-fill" id="clarity-fill"></span></span>
+          </div>
+          <button class="stop-btn" id="stop-btn" type="button" hidden></button>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="sheet" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="sheet-body">
+        <div class="sheet-head">
+          <h2 id="settings-title"></h2>
+          <button class="icon-btn" value="close" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="field">
+          <div class="field-text">
+            <span class="field-label" id="a4-label"></span>
+            <span class="field-hint" id="a4-hint"></span>
+          </div>
+          <div class="stepper" role="group" aria-labelledby="a4-label">
+            <button type="button" class="step" id="a4-down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg></button>
+            <output id="a4-value"></output>
+            <button type="button" class="step" id="a4-up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" /></svg></button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-text">
+            <label class="field-label" id="tol-label" for="tol-range"></label>
+            <span class="field-hint" id="tol-hint"></span>
+          </div>
+          <div class="range-row">
+            <input type="range" id="tol-range" min="1" max="10" step="1" />
+            <output id="tol-value"></output>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-text"><label class="field-label" id="mic-label" for="mic-select"></label></div>
+          <select id="mic-select"></select>
+        </div>
+
+        <div class="field">
+          <div class="field-text"><span class="field-label" id="theme-label"></span></div>
+          <div class="segmented" id="theme-seg" role="radiogroup" aria-labelledby="theme-label"></div>
+        </div>
+
+        <div class="sheet-links">
+          <button type="button" class="text-btn" id="help-btn"></button>
+          <button type="button" class="text-btn" id="reset-tuned"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="sheet" id="help-dialog" aria-labelledby="help-title">
+      <form method="dialog" class="sheet-body">
+        <div class="sheet-head">
+          <h2 id="help-title"></h2>
+          <button class="icon-btn" value="close" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <ol class="help-list" id="help-list"></ol>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
