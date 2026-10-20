@@ -53,6 +53,7 @@ export class YinDetector {
   private readonly d: Float64Array;
   private readonly dn: Float64Array;
   private readonly fft: FFT;
+  private lastValid = false;
   private readonly aRe: Float64Array;
   private readonly aIm: Float64Array;
   private readonly xRe: Float64Array;
@@ -103,6 +104,7 @@ export class YinDetector {
       energy[i + 1] = energy[i] + v * v;
     }
     const rms = Math.sqrt((energy[W] - energy[0]) / W);
+    this.lastValid = false;
     if (!(rms >= this.minRms)) return { freq: NaN, confidence: 0, rms, voiced: false };
 
     // Steps 1–2: difference function over a fixed window of W samples.
@@ -170,6 +172,7 @@ export class YinDetector {
       }
     }
 
+    this.lastValid = true;
     const aperiodicity = dn[tau];
     const confidence = Math.max(0, Math.min(1, 1 - aperiodicity));
     return {
@@ -178,5 +181,75 @@ export class YinDetector {
       rms,
       voiced: aperiodicity <= this.maxAperiodicity,
     };
+  }
+
+  /**
+   * Re-examine the last analysed frame at a given frequency: the best lag
+   * within ±`tol` of it, refined by parabolic interpolation, and its d'(τ).
+   * Lets the caller ask "does the note I was tracking still fit?" when the
+   * first-dip rule picked something else (typically an octave).
+   */
+  probe(freq: number, tol = 0.03): { freq: number; aperiodicity: number } {
+    if (!this.lastValid || !(freq > 0)) return { freq: NaN, aperiodicity: 1 };
+    const { dn, sampleRate, tauMax } = this;
+    const lo = Math.max(2, Math.floor(sampleRate / (freq * (1 + tol))));
+    const hi = Math.min(tauMax, Math.ceil(sampleRate / (freq * (1 - tol))));
+    if (hi <= lo) return { freq: NaN, aperiodicity: 1 };
+    let t = lo;
+    for (let k = lo + 1; k <= hi; k++) if (dn[k] < dn[t]) t = k;
+    let tauEst = t;
+    const y0 = dn[t - 1], y1 = dn[t], y2 = dn[t + 1];
+    const denom = y0 - 2 * y1 + y2;
+    if (denom > 0) {
+      const shift = (y0 - y2) / (2 * denom);
+      if (Math.abs(shift) <= 1) tauEst = t + shift;
+    }
+    return { freq: sampleRate / tauEst, aperiodicity: dn[t] };
+  }
+
+  /**
+   * Cheap local refinement: given a frame and a frequency already known to
+   * within ±`tol`, find the best-matching period near it using the
+   * normalised squared difference d(τ) / (E(0) + E(τ)) over only those lags.
+   * Returns the refined frequency and that normalised difference (0 = perfect).
+   * Used on a band-limited copy of the signal while a note is tracked.
+   */
+  refine(input: ArrayLike<number>, freq: number, tol = 0.03): { freq: number; aperiodicity: number } {
+    const { x, energy, windowSize: W, frameSize, sampleRate } = this;
+    if (input.length < frameSize || !(freq > 0)) return { freq: NaN, aperiodicity: 1 };
+    const offset = input.length - frameSize;
+    let mean = 0;
+    for (let i = 0; i < frameSize; i++) mean += input[offset + i];
+    mean /= frameSize;
+    energy[0] = 0;
+    for (let i = 0; i < frameSize; i++) {
+      const v = input[offset + i] - mean;
+      x[i] = v;
+      energy[i + 1] = energy[i] + v * v;
+    }
+    const lo = Math.max(2, Math.floor(sampleRate / (freq * (1 + tol))) - 1);
+    const hi = Math.min(this.tauMax + 1, Math.ceil(sampleRate / (freq * (1 - tol))) + 1);
+    if (hi - lo < 2) return { freq: NaN, aperiodicity: 1 };
+    const e0 = energy[W];
+    const nd = this.dn; // scratch
+    let best = lo;
+    for (let tau = lo; tau <= hi; tau++) {
+      let r = 0;
+      for (let j = 0; j < W; j++) r += x[j] * x[j + tau];
+      const eTau = energy[tau + W] - energy[tau];
+      const den = e0 + eTau;
+      nd[tau] = den > 0 ? Math.max(0, (den - 2 * r) / den) : 1;
+      if (nd[tau] < nd[best]) best = tau;
+    }
+    let tauEst = best;
+    if (best > lo && best < hi) {
+      const y0 = nd[best - 1], y1 = nd[best], y2 = nd[best + 1];
+      const denom = y0 - 2 * y1 + y2;
+      if (denom > 0) {
+        const shift = (y0 - y2) / (2 * denom);
+        if (Math.abs(shift) <= 1) tauEst = best + shift;
+      }
+    }
+    return { freq: sampleRate / tauEst, aperiodicity: nd[best] };
   }
 }

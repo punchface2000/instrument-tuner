@@ -75,6 +75,15 @@ The engine learns the room's noise floor and follows a note down to it. Once a n
 
 **Known limitation:** strong mains hum (50/60 Hz) on a wired setup interferes with bass E1 and A1, whose pitches sit close to it. Phones on battery are not affected.
 
+### Real-recording sessions
+
+[`uxtest/`](uxtest/) builds scripted tune-ups from real guitar, bass, violin and ukulele recordings. Each session has a detuned pluck, the peg turned while the string rings, an overshoot, re-plucks, room echo, background speech and bumps. They are played through the engine, or through the real app in a browser at phone CPU speed, and scored on what a player would notice. Results and fixes are in [`uxtest/RESULTS.md`](uxtest/RESULTS.md).
+
+Three things that testing changed in the engine:
+- A tracked note is measured on a copy of the signal filtered around its fundamental, so overtones don't pull the reading sharp.
+- Octave jumps are rejected when the note being followed still fits the waveform.
+- Only a real pluck, about as loud as recent ones, can switch to a different note while one is ringing.
+
 ## Development
 
 Requires [Node.js](https://nodejs.org) 20 or newer.
@@ -85,6 +94,7 @@ npm run dev       # live-reloading app at http://localhost:5173
 npm test          # unit tests
 npm run bench     # algorithm benchmark → bench/results.md
 npm run bench:live  # live responsiveness benchmark → bench/responsiveness.md
+uxtest/run.sh       # real-recording tuning sessions → uxtest/RESULTS.md
 npm run build     # one self-contained file: dist/index.html
 ```
 
