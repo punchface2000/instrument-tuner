@@ -11,6 +11,8 @@ A web tuner for guitar, ukulele, bass and violin, plus a chromatic mode. It is a
 3. Left of centre is flat (tighten), right is sharp (loosen). The note turns green when it is in tune, and the string gets a green dot.
 4. Tap a string to tune only that one, then tap **Play** to hear its pitch.
 5. **Chromatic** names any note. Settings has the reference pitch (A4), the in-tune range, the microphone and the theme.
+6. **Tunings:** tap the tuning under the instrument tabs (e.g. *Standard EADGBE*) to switch to Drop D, half/full step down, Drop C, DADGAD, open G/D/E/C, 7-string, 5- and 6-string bass, low-G and baritone ukulele, violin cross tunings or viola. **New tuning** makes your own (1–8 strings, any notes A0–C7). It's saved on the device and editable via the pencil. Each instrument remembers its last tuning.
+7. **Stand view** (top right) fills the screen with the note, an arrow and colour (green when in tune) that you can read from a few metres away. Tap anywhere to close it.
 
 The microphone only works on `https://` pages or `localhost`.
 
@@ -43,7 +45,8 @@ Microphone audio passes through a low-pass pre-filter and then into a YIN pitch 
 | Streaming low-pass pre-filter | [`src/pitch/filter.ts`](src/pitch/filter.ts) |
 | Detector settings per frequency range | [`src/pitch/config.ts`](src/pitch/config.ts) |
 | Note math (equal temperament, adjustable A4) | [`src/tuning.ts`](src/tuning.ts) |
-| Instruments and tunings (data only) | [`src/instruments.ts`](src/instruments.ts) |
+| Instruments and preset tunings (data only) | [`src/instruments.ts`](src/instruments.ts) |
+| Tuning selection and custom tunings (pure logic) | [`src/tunings.ts`](src/tunings.ts) |
 | Original MATLAB algorithm, ported as-is for comparison | [`src/pitch/legacy.ts`](src/pitch/legacy.ts) |
 | Live tuner logic: samples in, readings out (no DOM) | [`src/engine.ts`](src/engine.ts) |
 | Microphone capture (AudioWorklet) | [`src/audio/mic.ts`](src/audio/mic.ts) |
@@ -65,7 +68,7 @@ Add an entry to `INSTRUMENTS` in `src/instruments.ts`, listing the strings in ph
 },
 ```
 
-It appears as a new tab. The detection range and filter settings are derived from the notes. An instrument can already list several tunings, but the app uses the first one until a tuning picker is added.
+It appears as a new tab, and its tunings appear in the tuning picker (the first one is the default). The detection range and filter settings are derived from the notes. To add a preset tuning to an existing instrument, add an entry to its `tunings` list.
 
 ## Benchmark
 

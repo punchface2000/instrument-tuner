@@ -23,24 +23,63 @@ export const INSTRUMENTS: Instrument[] = [
   {
     id: 'guitar',
     name: 'Guitar',
-    tunings: [{ id: 'standard', name: 'Standard (EADGBE)', strings: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'] }],
+    tunings: [
+      { id: 'standard', name: 'Standard', strings: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
+      { id: 'drop-d', name: 'Drop D', strings: ['D2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
+      { id: 'half-down', name: 'Half step down', strings: ['Eb2', 'Ab2', 'Db3', 'Gb3', 'Bb3', 'Eb4'] },
+      { id: 'full-down', name: 'Full step down', strings: ['D2', 'G2', 'C3', 'F3', 'A3', 'D4'] },
+      { id: 'drop-c', name: 'Drop C', strings: ['C2', 'G2', 'C3', 'F3', 'A3', 'D4'] },
+      { id: 'dadgad', name: 'DADGAD', strings: ['D2', 'A2', 'D3', 'G3', 'A3', 'D4'] },
+      { id: 'open-g', name: 'Open G', strings: ['D2', 'G2', 'D3', 'G3', 'B3', 'D4'] },
+      { id: 'open-d', name: 'Open D', strings: ['D2', 'A2', 'D3', 'F#3', 'A3', 'D4'] },
+      { id: 'open-e', name: 'Open E', strings: ['E2', 'B2', 'E3', 'G#3', 'B3', 'E4'] },
+      { id: 'open-c', name: 'Open C', strings: ['C2', 'G2', 'C3', 'G3', 'C4', 'E4'] },
+      { id: 'seven', name: '7-string', strings: ['B1', 'E2', 'A2', 'D3', 'G3', 'B3', 'E4'] },
+    ],
   },
   {
     id: 'ukulele',
     name: 'Ukulele',
-    tunings: [{ id: 'standard', name: 'Standard (GCEA, high G)', strings: ['G4', 'C4', 'E4', 'A4'] }],
+    tunings: [
+      { id: 'standard', name: 'Standard (high G)', strings: ['G4', 'C4', 'E4', 'A4'] },
+      { id: 'low-g', name: 'Low G', strings: ['G3', 'C4', 'E4', 'A4'] },
+      { id: 'd-tuning', name: 'D tuning', strings: ['A4', 'D4', 'F#4', 'B4'] },
+      { id: 'baritone', name: 'Baritone', strings: ['D3', 'G3', 'B3', 'E4'] },
+    ],
   },
   {
     id: 'bass',
     name: 'Bass',
-    tunings: [{ id: 'standard', name: 'Standard 4-string (EADG)', strings: ['E1', 'A1', 'D2', 'G2'] }],
+    tunings: [
+      { id: 'standard', name: 'Standard', strings: ['E1', 'A1', 'D2', 'G2'] },
+      { id: 'drop-d', name: 'Drop D', strings: ['D1', 'A1', 'D2', 'G2'] },
+      { id: 'half-down', name: 'Half step down', strings: ['Eb1', 'Ab1', 'Db2', 'Gb2'] },
+      { id: 'five', name: '5-string', strings: ['B0', 'E1', 'A1', 'D2', 'G2'] },
+      { id: 'six', name: '6-string', strings: ['B0', 'E1', 'A1', 'D2', 'G2', 'C3'] },
+    ],
   },
   {
     id: 'violin',
     name: 'Violin',
-    tunings: [{ id: 'standard', name: 'Standard (GDAE)', strings: ['G3', 'D4', 'A4', 'E5'] }],
+    tunings: [
+      { id: 'standard', name: 'Standard', strings: ['G3', 'D4', 'A4', 'E5'] },
+      { id: 'cross-a', name: 'Cross A (AEAE)', strings: ['A3', 'E4', 'A4', 'E5'] },
+      { id: 'cross-g', name: 'Cross G (GDGD)', strings: ['G3', 'D4', 'G4', 'D5'] },
+      { id: 'viola', name: 'Viola', strings: ['C3', 'G3', 'D4', 'A4'] },
+    ],
   },
 ];
+
+/** Lowest and highest notes a custom tuning may use. */
+export const STRING_NOTE_RANGE = { low: 'A0', high: 'C7' };
+/** Number of strings a custom tuning may have. */
+export const STRING_COUNT_RANGE = { min: 1, max: 8 };
+
+/** Letter names of a tuning, e.g. "EADGBE" or "D A D F♯ A D" when accidentals are present. */
+export function tuningLetters(strings: string[]): string {
+  const letters = strings.map((n) => n.replace(/-?\d+$/, '').replace('#', '♯').replace(/^([A-G])b$/, '$1♭'));
+  return letters.some((l) => l.length > 1) ? letters.join(' ') : letters.join('');
+}
 
 /** Range used by chromatic mode. */
 export const CHROMATIC_RANGE = { low: 'B0', high: 'C8' };

@@ -10,7 +10,11 @@ import { ReferenceTone } from './audio/reference-tone';
 import { ClipRecorder, deliverFile } from './audio/clip';
 import { registerServiceWorker, offlineVersion } from './pwa';
 import { TunerEngine, type EngineSettings, type Reading } from './engine';
-import { INSTRUMENTS, findInstrument, resolveStrings } from './instruments';
+import { INSTRUMENTS, findInstrument, resolveStrings, tuningLetters, STRING_COUNT_RANGE, STRING_NOTE_RANGE } from './instruments';
+import {
+  selectedTuning, tuningsFor, stepNote, extraString, newCustomId, defaultCustomName, CUSTOM_NAME_MAX, type CustomTuning,
+} from './tunings';
+import { midiToName, nameToMidi } from './tuning';
 import { t, tList } from './i18n';
 import {
   loadSettings, saveSettings, clamp, A4_MIN, A4_MAX, TOLERANCE_MIN, TOLERANCE_MAX, type Settings, type Theme,
@@ -78,6 +82,36 @@ const el = {
   toastClose: $<HTMLButtonElement>('toast-close'),
   saveClip: $<HTMLButtonElement>('save-clip'),
   appVersion: $('app-version'),
+  tuningBtn: $<HTMLButtonElement>('tuning-btn'),
+  tuningName: $('tuning-name'),
+  tuningNotes: $('tuning-notes'),
+  standBtn: $<HTMLButtonElement>('stand-btn'),
+  tuningDialog: $<HTMLDialogElement>('tuning-dialog'),
+  presetList: $('preset-list'),
+  customGroup: $('custom-group'),
+  customList: $('custom-list'),
+  newTuningBtn: $<HTMLButtonElement>('new-tuning-btn'),
+  editorDialog: $<HTMLDialogElement>('editor-dialog'),
+  editorForm: $<HTMLFormElement>('editor-form'),
+  editorTitle: $('editor-title'),
+  editorName: $<HTMLInputElement>('editor-name'),
+  stringRows: $('string-rows'),
+  addLow: $<HTMLButtonElement>('add-low'),
+  addHigh: $<HTMLButtonElement>('add-high'),
+  editorDelete: $<HTMLButtonElement>('editor-delete'),
+  editorCancel: $<HTMLButtonElement>('editor-cancel'),
+  editorClose: $<HTMLButtonElement>('editor-close'),
+  editorSave: $<HTMLButtonElement>('editor-save'),
+  stand: $('stand'),
+  standHint: $('stand-hint'),
+  standLetter: $('stand-letter'),
+  standAcc: $('stand-acc'),
+  standOct: $('stand-oct'),
+  standDirText: $('stand-dir-text'),
+  standCents: $('stand-cents'),
+  standZone: $('stand-zone'),
+  standMark: $('stand-mark'),
+  standLive: $('stand-live'),
 };
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -88,21 +122,25 @@ const isChromatic = () => settings.view === 'chromatic';
 const instrumentId = () => (isChromatic() ? lastInstrument : settings.view);
 let lastInstrument = isChromatic() ? INSTRUMENTS[0].id : settings.view;
 
+function currentTuning() {
+  return selectedTuning(instrumentId(), settings.tunings, settings.customTunings);
+}
+
 function engineSettings(): EngineSettings {
-  const inst = findInstrument(instrumentId());
+  const tun = currentTuning();
   return {
     a4: settings.a4,
     toleranceCents: settings.toleranceCents,
     mode: isChromatic() ? 'chromatic' : 'instrument',
-    instrumentId: inst.id,
-    tuningId: inst.tunings[0].id,
+    instrumentId: instrumentId(),
+    tuningId: tun.id,
+    strings: [...tun.strings],
     lockedString: isChromatic() ? null : lockedString,
   };
 }
 
 function currentStrings() {
-  const inst = findInstrument(instrumentId());
-  return resolveStrings(inst.tunings[0], settings.a4);
+  return resolveStrings(currentTuning(), settings.a4);
 }
 
 function splitNote(name: string): { letter: string; acc: string; oct: string } {
@@ -143,6 +181,18 @@ function buildText() {
   el.a4Up.setAttribute('aria-label', t('higher'));
   el.resetTuned.textContent = t('resetTuned');
   el.saveClip.textContent = t('saveClip');
+  $('stand-btn-label').textContent = t('standView');
+  el.standBtn.setAttribute('aria-label', t('standViewLabel'));
+  el.standHint.textContent = t('standHint');
+  $('custom-title').textContent = t('yourTunings');
+  $('new-tuning-label').textContent = t('newTuning');
+  $('editor-name-label').textContent = t('tuningNameLabel');
+  $('editor-strings-label').textContent = t('stringsLabel');
+  $('editor-strings-hint').textContent = t('stringsHint');
+  el.addLow.textContent = `+ ${t('addLowString')}`;
+  el.addHigh.textContent = `+ ${t('addHighString')}`;
+  el.editorCancel.textContent = t('cancel');
+  el.editorSave.textContent = t('save');
   $('save-clip-hint').textContent = t('saveClipHint');
   $('quick-input-label').textContent = t('input');
   $('channel-label').textContent = t('channel');
@@ -189,7 +239,9 @@ function buildPegs() {
   const show = !isChromatic();
   el.stringsSection.hidden = !show;
   if (!show) return;
-  const pegs = currentStrings().map((s) => {
+  const strings = currentStrings();
+  el.pegs.style.setProperty('--n', String(strings.length));
+  const pegs = strings.map((s) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'peg';
@@ -226,6 +278,7 @@ function selectView(id: string) {
   reading = null;
   buildPegs();
   renderStringTools();
+  renderTuningButton();
   render();
 }
 
@@ -492,6 +545,263 @@ function wireSettings() {
   });
 }
 
+// ---------- tunings: picker and editor ----------
+
+function renderTuningButton() {
+  el.tuningBtn.hidden = isChromatic();
+  if (isChromatic()) return;
+  const tun = currentTuning();
+  el.tuningName.textContent = tun.name;
+  el.tuningNotes.textContent = tuningLetters(tun.strings);
+  el.tuningBtn.setAttribute('aria-label', `${t('tuning')}: ${tun.name}, ${tuningLetters(tun.strings)}`);
+}
+
+function selectTuning(id: string) {
+  settings.tunings = { ...settings.tunings, [instrumentId()]: id };
+  persist();
+  lockedString = null;
+  engine?.configure(engineSettings());
+  reading = null;
+  buildPegs();
+  renderStringTools();
+  renderTuningButton();
+}
+
+function tuningRow(tun: { id: string; name: string; strings: string[] }, selected: boolean, editable: boolean) {
+  const row = document.createElement('div');
+  row.className = 'tuning-row';
+  const pick = document.createElement('button');
+  pick.type = 'button';
+  pick.className = 'tuning-pick';
+  pick.setAttribute('role', 'radio');
+  pick.setAttribute('aria-checked', String(selected));
+  pick.innerHTML = `<span class="tick-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
+    <span class="pick-text"><span class="pick-name"></span><span class="pick-notes"></span></span>`;
+  pick.querySelector('.pick-name')!.textContent = tun.name;
+  pick.querySelector('.pick-notes')!.textContent = tuningLetters(tun.strings);
+  pick.addEventListener('click', () => {
+    selectTuning(tun.id);
+    el.tuningDialog.close();
+  });
+  row.append(pick);
+  if (editable) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'icon-btn';
+    edit.setAttribute('aria-label', t('editNamed', { name: tun.name }));
+    edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>';
+    edit.addEventListener('click', () => {
+      el.tuningDialog.close();
+      openEditor(tun.id);
+    });
+    row.append(edit);
+  }
+  return row;
+}
+
+function openTuningPicker() {
+  const { presets, custom } = tuningsFor(instrumentId(), settings.customTunings);
+  const current = currentTuning().id;
+  $('tuning-title').textContent = `${findInstrument(instrumentId()).name} · ${t('tuning')}`;
+  el.presetList.replaceChildren(...presets.map((p) => tuningRow(p, p.id === current, false)));
+  el.customGroup.hidden = custom.length === 0;
+  el.customList.replaceChildren(...custom.map((c) => tuningRow(c, c.id === current, true)));
+  el.tuningDialog.showModal();
+  el.tuningDialog.querySelector<HTMLElement>('[aria-checked="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+// Editor draft: a copy that only becomes real on Save.
+let draft: { id: string | null; strings: string[] } = { id: null, strings: [] };
+let deleteArmed = false;
+
+const ALL_NOTES = (() => {
+  const out: string[] = [];
+  for (let m = nameToMidi(STRING_NOTE_RANGE.low); m <= nameToMidi(STRING_NOTE_RANGE.high); m++) out.push(midiToName(m));
+  return out;
+})();
+
+function openEditor(editId: string | null) {
+  const existing = editId ? settings.customTunings.find((c) => c.id === editId) : undefined;
+  const base = existing ?? currentTuning();
+  // keep notes as sharps in the editor so they match the note list
+  draft = { id: existing?.id ?? null, strings: base.strings.map((n) => midiToName(nameToMidi(n))) };
+  el.editorTitle.textContent = existing ? t('editTuning') : t('newTuning');
+  el.editorName.value = existing ? existing.name : '';
+  el.editorName.placeholder = defaultCustomName(draft.strings);
+  el.editorDelete.hidden = !existing;
+  deleteArmed = false;
+  el.editorDelete.textContent = t('deleteTuning');
+  renderStringRows();
+  el.editorDialog.showModal();
+}
+
+function renderStringRows() {
+  const n = draft.strings.length;
+  el.stringRows.replaceChildren(
+    ...draft.strings.map((note, i) => {
+      const li = document.createElement('li');
+      li.className = 'string-row';
+      const label = document.createElement('span');
+      label.className = 'string-num';
+      label.textContent = String(i + 1);
+      const down = stepBtn('−', t('noteDown', { n: i + 1 }), () => setString(i, stepNote(draft.strings[i], -1)));
+      const sel = document.createElement('select');
+      sel.className = 'note-select';
+      sel.setAttribute('aria-label', t('stringN', { n: i + 1 }));
+      sel.replaceChildren(...ALL_NOTES.map((nn) => new Option(prettyNote(nn), nn)));
+      sel.value = note;
+      sel.addEventListener('change', () => setString(i, sel.value));
+      const up = stepBtn('+', t('noteUp', { n: i + 1 }), () => setString(i, stepNote(draft.strings[i], 1)));
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'icon-btn remove-btn';
+      rm.setAttribute('aria-label', t('removeString', { n: i + 1 }));
+      rm.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>';
+      rm.disabled = n <= STRING_COUNT_RANGE.min;
+      rm.addEventListener('click', () => {
+        draft.strings.splice(i, 1);
+        renderStringRows();
+      });
+      li.append(label, down, sel, up, rm);
+      return li;
+    }),
+  );
+  const full = n >= STRING_COUNT_RANGE.max;
+  el.addLow.disabled = full;
+  el.addHigh.disabled = full;
+  el.editorName.placeholder = defaultCustomName(draft.strings);
+}
+
+function stepBtn(text: string, label: string, fn: () => void) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'step note-step';
+  b.textContent = text;
+  b.setAttribute('aria-label', label);
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function setString(i: number, note: string) {
+  draft.strings[i] = note;
+  renderStringRows();
+}
+
+function saveEditor() {
+  if (!draft.strings.length) return;
+  const name = (el.editorName.value.trim() || defaultCustomName(draft.strings)).slice(0, CUSTOM_NAME_MAX);
+  const list = settings.customTunings;
+  const id = draft.id ?? newCustomId(list);
+  const tuning: CustomTuning = { id, instrumentId: instrumentId(), name, strings: [...draft.strings], custom: true };
+  settings.customTunings = draft.id ? list.map((c) => (c.id === id ? tuning : c)) : [...list, tuning];
+  el.editorDialog.close();
+  selectTuning(id); // also saves
+  showToast(t('tuningSaved', { name }));
+}
+
+function deleteEdited() {
+  if (!draft.id) return;
+  if (!deleteArmed) {
+    deleteArmed = true;
+    el.editorDelete.textContent = t('deleteConfirm');
+    return;
+  }
+  const gone = settings.customTunings.find((c) => c.id === draft.id);
+  settings.customTunings = settings.customTunings.filter((c) => c.id !== draft.id);
+  el.editorDialog.close();
+  if (currentTuning().id === draft.id || settings.tunings[instrumentId()] === draft.id) selectTuning('standard');
+  else persist();
+  if (gone) showToast(t('tuningDeleted', { name: gone.name }));
+}
+
+function wireTunings() {
+  el.tuningBtn.addEventListener('click', openTuningPicker);
+  el.newTuningBtn.addEventListener('click', () => {
+    el.tuningDialog.close();
+    openEditor(null);
+  });
+  el.addLow.addEventListener('click', () => {
+    draft.strings.unshift(extraString(draft.strings, 'low'));
+    renderStringRows();
+  });
+  el.addHigh.addEventListener('click', () => {
+    draft.strings.push(extraString(draft.strings, 'high'));
+    renderStringRows();
+  });
+  el.editorForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    saveEditor();
+  });
+  el.editorCancel.addEventListener('click', () => el.editorDialog.close());
+  el.editorClose.addEventListener('click', () => el.editorDialog.close());
+  el.editorDelete.addEventListener('click', deleteEdited);
+  for (const d of [el.tuningDialog, el.editorDialog]) {
+    d.addEventListener('click', (ev) => {
+      if (ev.target === d) d.close();
+    });
+  }
+}
+
+// ---------- music stand view ----------
+
+let standHintTimer: number | undefined;
+
+async function enterStand() {
+  if (!engine) await startMic();
+  if (!engine) return; // the mic could not start; the error shows on the main screen
+  el.stand.hidden = false;
+  el.standHint.classList.remove('faded');
+  window.clearTimeout(standHintTimer);
+  standHintTimer = window.setTimeout(() => el.standHint.classList.add('faded'), 3000);
+  const root = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
+  // Full screen where the browser allows it (desktop, Android); iPhone ignores it.
+  if (root.requestFullscreen && !document.fullscreenElement) root.requestFullscreen().catch(() => {});
+}
+
+function exitStand() {
+  el.stand.hidden = true;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function renderStand(r: Reading | null, active: boolean) {
+  const tol = settings.toleranceCents;
+  el.standZone.style.left = `${50 - tol}%`;
+  el.standZone.style.width = `${2 * tol}%`;
+  let dir: 'none' | 'up' | 'down' | 'in' = 'none';
+  if (active && r) {
+    const n = splitNote(r.targetName);
+    el.standLetter.textContent = n.letter;
+    el.standAcc.textContent = n.acc;
+    el.standOct.textContent = n.oct;
+    dir = r.inTune ? 'in' : r.cents < 0 ? 'up' : 'down';
+    el.standDirText.textContent = r.inTune ? t('inTune') : r.cents < 0 ? t('tuneUp') : t('tuneDown');
+    const c = Math.round(r.cents);
+    el.standCents.textContent = c === 0 ? '0' : `${c > 0 ? '+' : '−'}${Math.abs(c)}`;
+    el.standMark.style.left = `${50 + clamp(r.cents, -50, 50)}%`;
+  } else {
+    el.standLetter.textContent = lastLetter() ?? '';
+    el.standAcc.textContent = '';
+    el.standOct.textContent = '';
+    el.standDirText.textContent = isChromatic() ? t('playNote') : t('playString');
+    el.standCents.textContent = '';
+    el.standMark.style.left = '50%';
+  }
+  el.stand.dataset.dir = dir;
+  el.stand.dataset.held = String(!!r?.held);
+  el.standLive.textContent = el.live.textContent;
+}
+
+function wireStand() {
+  el.standBtn.addEventListener('click', () => void enterStand());
+  el.stand.addEventListener('click', exitStand);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !el.stand.hidden) exitStand();
+  });
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && !el.stand.hidden) el.stand.hidden = true;
+  });
+}
+
 // ---------- notices, offline support, troubleshooting clips ----------
 
 let toastTimer: number | undefined;
@@ -590,6 +900,7 @@ function render() {
   el.clarityFill.classList.toggle('good', conf > 0.85);
 
   if (listening) renderPegs();
+  if (!el.stand.hidden) renderStand(r, active);
 
   // Screen readers: announce when a note comes into tune, not every frame.
   const liveKey = active && r!.inTune && !r!.held ? r!.targetName : '';
@@ -622,6 +933,9 @@ buildThemeSeg();
 renderZone();
 renderStringTools();
 wireSettings();
+wireTunings();
+wireStand();
+renderTuningButton();
 el.startBtn.addEventListener('click', () => void startMic());
 el.stopBtn.addEventListener('click', stopMic);
 el.playBtn.addEventListener('click', playReference);

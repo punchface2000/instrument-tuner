@@ -18,6 +18,11 @@ export interface EngineSettings {
   mode: Mode;
   instrumentId: string;
   tuningId: string;
+  /**
+   * The strings to tune to, as note names. Overrides the instrument's tuning
+   * `tuningId` when given (custom tunings).
+   */
+  strings?: string[];
   /** Physical string index the user tapped to lock, or null for automatic. */
   lockedString: number | null;
 }
@@ -183,9 +188,10 @@ export class TunerEngine {
     const prev = this.settings;
     this.settings = { ...prev, ...next };
     const s = this.settings;
-    const rangeChanged =
-      s.mode !== prev.mode || s.instrumentId !== prev.instrumentId || s.tuningId !== prev.tuningId || s.a4 !== prev.a4;
-    if (s.instrumentId !== prev.instrumentId || s.tuningId !== prev.tuningId || s.mode !== prev.mode) {
+    const stringsChanged = (s.strings ?? []).join() !== (prev.strings ?? []).join();
+    const tuningChanged = s.instrumentId !== prev.instrumentId || s.tuningId !== prev.tuningId || stringsChanged;
+    const rangeChanged = s.mode !== prev.mode || tuningChanged || s.a4 !== prev.a4;
+    if (tuningChanged || s.mode !== prev.mode) {
       this.tuned.clear();
     }
     if (rangeChanged) this.rebuild();
@@ -213,7 +219,9 @@ export class TunerEngine {
   private rebuild(): void {
     const s = this.settings;
     const inst = findInstrument(s.instrumentId);
-    const tuning = inst.tunings.find((t) => t.id === s.tuningId) ?? inst.tunings[0];
+    const tuning = s.strings?.length
+      ? { id: s.tuningId, name: '', strings: s.strings }
+      : (inst.tunings.find((t) => t.id === s.tuningId) ?? inst.tunings[0]);
     this.strings = resolveStrings(tuning, s.a4);
     let fMin: number;
     let fMax: number;

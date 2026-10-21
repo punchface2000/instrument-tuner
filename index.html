@@ -26,6 +26,18 @@
         </div>
       </header>
 
+      <div class="subbar">
+        <button class="tuning-btn" id="tuning-btn" type="button" aria-haspopup="dialog">
+          <span class="tuning-name" id="tuning-name"></span>
+          <span class="tuning-notes" id="tuning-notes"></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+        </button>
+        <button class="stand-btn" id="stand-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          <span id="stand-btn-label"></span>
+        </button>
+      </div>
+
       <main class="stage" id="stage" data-state="idle">
         <section class="reading" aria-label="Tuner reading">
           <div class="note" id="note" aria-hidden="true">
@@ -90,6 +102,74 @@
         </section>
       </main>
     </div>
+
+    <div class="stand" id="stand" hidden data-dir="none">
+      <p class="stand-hint" id="stand-hint"></p>
+      <div class="stand-note" aria-hidden="true">
+        <span class="stand-letter" id="stand-letter"></span>
+        <span class="stand-mods"><span id="stand-acc"></span><span id="stand-oct"></span></span>
+      </div>
+      <div class="stand-info">
+        <p class="stand-dir">
+          <svg class="stand-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l8 10h-5v6H9v-6H4z" /></svg>
+          <svg class="stand-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" /></svg>
+          <span id="stand-dir-text"></span>
+        </p>
+        <p class="stand-cents" id="stand-cents"></p>
+      </div>
+      <div class="stand-bar" aria-hidden="true"><span class="stand-zone" id="stand-zone"></span><span class="stand-mark" id="stand-mark"></span></div>
+      <p class="sr-only" aria-live="polite" id="stand-live"></p>
+    </div>
+
+    <dialog class="sheet" id="tuning-dialog" aria-labelledby="tuning-title">
+      <form method="dialog" class="sheet-body">
+        <div class="sheet-head">
+          <h2 id="tuning-title"></h2>
+          <button class="icon-btn" value="close" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <div class="tuning-list" id="preset-list" role="radiogroup"></div>
+        <div class="tuning-group" id="custom-group">
+          <h3 class="group-title" id="custom-title"></h3>
+          <div class="tuning-list" id="custom-list" role="radiogroup"></div>
+        </div>
+        <button type="button" class="add-btn" id="new-tuning-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <span id="new-tuning-label"></span>
+        </button>
+      </form>
+    </dialog>
+
+    <dialog class="sheet" id="editor-dialog" aria-labelledby="editor-title">
+      <form class="sheet-body" id="editor-form">
+        <div class="sheet-head">
+          <h2 id="editor-title"></h2>
+          <button class="icon-btn" type="button" id="editor-close" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <div class="field">
+          <label class="field-label" for="editor-name" id="editor-name-label"></label>
+          <input type="text" class="text-input" id="editor-name" maxlength="30" autocomplete="off" />
+        </div>
+        <div class="field">
+          <div class="field-text">
+            <span class="field-label" id="editor-strings-label"></span>
+            <span class="field-hint" id="editor-strings-hint"></span>
+          </div>
+          <button type="button" class="add-row" id="add-low"></button>
+          <ol class="string-rows" id="string-rows"></ol>
+          <button type="button" class="add-row" id="add-high"></button>
+        </div>
+        <div class="editor-actions">
+          <button type="button" class="text-btn danger" id="editor-delete" hidden></button>
+          <span class="spacer"></span>
+          <button type="button" class="ghost-btn" id="editor-cancel"></button>
+          <button type="submit" class="primary-btn" id="editor-save"></button>
+        </div>
+      </form>
+    </dialog>
 
     <div class="toast" id="toast" role="status" hidden>
       <span id="toast-text"></span>
