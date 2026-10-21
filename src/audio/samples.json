@@ -1,0 +1,160 @@
+{
+ "guitar": {
+  "maxDown": 3,
+  "maxUp": 2,
+  "credit": "University of Iowa Electronic Music Studios",
+  "files": [
+   {
+    "note": "D2",
+    "midi": 38,
+    "file": "samples/guitar/D2.mp3",
+    "cents": 2.65
+   },
+   {
+    "note": "E2",
+    "midi": 40,
+    "file": "samples/guitar/E2.mp3",
+    "cents": 0.5
+   },
+   {
+    "note": "F#2",
+    "midi": 42,
+    "file": "samples/guitar/Fs2.mp3",
+    "cents": -1.48
+   },
+   {
+    "note": "A#2",
+    "midi": 46,
+    "file": "samples/guitar/As2.mp3",
+    "cents": -1.35
+   },
+   {
+    "note": "C3",
+    "midi": 48,
+    "file": "samples/guitar/C3.mp3",
+    "cents": 0.4
+   },
+   {
+    "note": "D3",
+    "midi": 50,
+    "file": "samples/guitar/D3.mp3",
+    "cents": 0.08
+   },
+   {
+    "note": "E3",
+    "midi": 52,
+    "file": "samples/guitar/E3.mp3",
+    "cents": 0.19
+   },
+   {
+    "note": "F#3",
+    "midi": 54,
+    "file": "samples/guitar/Fs3.mp3",
+    "cents": -2.87
+   },
+   {
+    "note": "G3",
+    "midi": 55,
+    "file": "samples/guitar/G3.mp3",
+    "cents": 0.23
+   },
+   {
+    "note": "A#3",
+    "midi": 58,
+    "file": "samples/guitar/As3.mp3",
+    "cents": 0.09
+   },
+   {
+    "note": "C4",
+    "midi": 60,
+    "file": "samples/guitar/C4.mp3",
+    "cents": -2.33
+   },
+   {
+    "note": "D4",
+    "midi": 62,
+    "file": "samples/guitar/D4.mp3",
+    "cents": 0.37
+   },
+   {
+    "note": "E4",
+    "midi": 64,
+    "file": "samples/guitar/E4.mp3",
+    "cents": -0.25
+   },
+   {
+    "note": "F#4",
+    "midi": 66,
+    "file": "samples/guitar/Fs4.mp3",
+    "cents": -0.04
+   },
+   {
+    "note": "G#4",
+    "midi": 68,
+    "file": "samples/guitar/Gs4.mp3",
+    "cents": -0.01
+   },
+   {
+    "note": "A#4",
+    "midi": 70,
+    "file": "samples/guitar/As4.mp3",
+    "cents": -0.01
+   },
+   {
+    "note": "C5",
+    "midi": 72,
+    "file": "samples/guitar/C5.mp3",
+    "cents": -0.01
+   },
+   {
+    "note": "D5",
+    "midi": 74,
+    "file": "samples/guitar/D5.mp3",
+    "cents": 0.03
+   }
+  ]
+ },
+ "violin": {
+  "maxDown": 7,
+  "maxUp": 2,
+  "credit": "VSCO 2 Community Edition (CC0)",
+  "files": [
+   {
+    "note": "G3",
+    "midi": 55,
+    "file": "samples/violin/G3.mp3",
+    "cents": 0.71
+   },
+   {
+    "note": "E4",
+    "midi": 64,
+    "file": "samples/violin/E4.mp3",
+    "cents": -0.13
+   },
+   {
+    "note": "C5",
+    "midi": 72,
+    "file": "samples/violin/C5.mp3",
+    "cents": 0.01
+   },
+   {
+    "note": "E5",
+    "midi": 76,
+    "file": "samples/violin/E5.mp3",
+    "cents": -0.71
+   },
+   {
+    "note": "A5",
+    "midi": 81,
+    "file": "samples/violin/A5.mp3",
+    "cents": 0.13
+   },
+   {
+    "note": "C6",
+    "midi": 84,
+    "file": "samples/violin/C6.mp3",
+    "cents": -0.1
+   }
+  ]
+ }
+}

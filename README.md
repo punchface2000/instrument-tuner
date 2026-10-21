@@ -9,7 +9,7 @@ A web tuner for guitar, ukulele, bass and violin, plus a chromatic mode. It is a
 1. Open the page and tap **Start tuning**. The browser asks for the microphone once.
 2. Pick your instrument and play one string at a time. The tuner finds the nearest string.
 3. Left of centre is flat (tighten), right is sharp (loosen). The note turns green when it is in tune, and the string gets a green dot.
-4. Tap a string to tune only that one, then tap **Play** to hear its pitch.
+4. Tap a string to tune only that one. Tap the **speaker** under any string to hear that note played by the instrument itself, so you can tune by ear.
 5. **Chromatic** names any note. Settings has the reference pitch (A4), the in-tune range, the microphone and the theme.
 6. **Tunings:** tap the tuning under the instrument tabs (e.g. *Standard EADGBE*) to switch to Drop D, half/full step down, Drop C, DADGAD, open G/D/E/C, 7-string, 5- and 6-string bass, low-G and baritone ukulele, violin cross tunings or viola. **New tuning** makes your own (1–8 strings, any notes A0–C7). It's saved on the device and editable via the pencil. Each instrument remembers its last tuning.
 7. **Stand view** (top right) fills the screen with the note, an arrow and colour (green when in tune) that you can read from a few metres away. Tap anywhere to close it.
@@ -26,6 +26,18 @@ The microphone only works on `https://` pages or `localhost`.
 | Mac (Safari) | **File → Add to Dock**. |
 
 Updates download in the background; the app shows *A new version is ready – Update*.
+
+### Reference sounds
+
+The speaker under each string plays the note in the instrument's own voice, exactly in tune (it follows the A4 setting too):
+
+| Instrument | Sound |
+|---|---|
+| Guitar | Recordings of a real acoustic guitar ([University of Iowa Electronic Music Studios](https://theremin.music.uiowa.edu/MIS.html), free to use "for any projects, without restrictions") |
+| Violin | Recordings of a real violin ([VSCO 2 Community Edition](https://versilian-studios.com/vsco-community/), CC0) |
+| Bass, ukulele, and notes outside the recorded range | A modelled plucked string ([`src/audio/pluck.ts`](src/audio/pluck.ts)) |
+
+Every recording is pitch-corrected: its pitch is tracked over time and flattened exactly onto the note, which also removes the violin's vibrato. Each candidate is then measured with the tuner's own engine, and only the steadiest is kept (spread ≤ ±4 cents). Rebuild them with `python3 scripts/make-samples.py && npx tsx scripts/pick-samples.ts`. The app shifts a recording by at most two semitones up, or a few down, to reach any string.
 
 ### Inputs
 
@@ -55,6 +67,8 @@ Microphone audio passes through a low-pass pre-filter and then into a YIN pitch 
 | All user-facing text (for translations) | [`src/i18n.ts`](src/i18n.ts) |
 | Offline support (service worker registration, updates) | [`src/pwa.ts`](src/pwa.ts), [`src/sw-template.js`](src/sw-template.js), [`public/`](public/) |
 | Troubleshooting clips | [`src/audio/clip.ts`](src/audio/clip.ts) |
+| Reference sounds: player, source choice, plucked-string model | [`src/audio/reference-player.ts`](src/audio/reference-player.ts), [`src/audio/reference-source.ts`](src/audio/reference-source.ts), [`src/audio/pluck.ts`](src/audio/pluck.ts) |
+| Building the recorded samples | [`scripts/make-samples.py`](scripts/make-samples.py), [`scripts/pick-samples.ts`](scripts/pick-samples.ts) |
 
 ### Adding an instrument
 

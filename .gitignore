@@ -10,3 +10,4 @@ uxtest/truth.json
 uxtest/score_*.json
 uxtest/score_*.txt
 uxtest/.server.pid
+.sample-build/

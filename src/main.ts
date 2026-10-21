@@ -6,7 +6,7 @@ import '@fontsource/instrument-sans/latin-500';
 import '@fontsource/instrument-sans/latin-600';
 import './styles.css';
 import { MicInput, MicError } from './audio/mic';
-import { ReferenceTone } from './audio/reference-tone';
+import { ReferencePlayer } from './audio/reference-player';
 import { ClipRecorder, deliverFile } from './audio/clip';
 import { registerServiceWorker, offlineVersion } from './pwa';
 import { TunerEngine, type EngineSettings, type Reading } from './engine';
@@ -26,7 +26,8 @@ const settings: Settings = loadSettings();
 let lockedString: number | null = null;
 let mic: MicInput | null = null;
 let engine: TunerEngine | null = null;
-let tone: ReferenceTone | null = null;
+let player: ReferencePlayer | null = null;
+let playingString: number | null = null;
 let reading: Reading | null = null;
 let muteUntil = 0; // ignore the mic while a reference tone plays
 let wakeLock: { release(): Promise<void> } | null = null;
@@ -53,8 +54,7 @@ const el = {
   stringsSection: $('strings-section'),
   pegs: $('pegs'),
   stringHint: $('string-hint'),
-  playBtn: $<HTMLButtonElement>('play-btn'),
-  playLabel: $('play-label'),
+  plays: $('plays'),
   levelLabel: $('level-label'),
   levelFill: $('level-fill'),
   clarityLabel: $('clarity-label'),
@@ -253,7 +253,23 @@ function buildPegs() {
     return b;
   });
   el.pegs.replaceChildren(...pegs);
+  el.plays.style.setProperty('--n', String(strings.length));
+  el.plays.replaceChildren(
+    ...strings.map((s) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'play-string';
+      b.dataset.index = String(s.index);
+      b.setAttribute('aria-label', t('playReference', { note: prettyNote(s.name) }));
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" /><path class="wave" d="M15.5 9a4 4 0 0 1 0 6" /></svg>';
+      b.addEventListener('click', () => void playString(s.index));
+      return b;
+    }),
+  );
   renderPegs();
+  preloadReferences();
 }
 
 function renderZone() {
@@ -293,13 +309,9 @@ function renderStringTools() {
   if (isChromatic()) return;
   const strings = currentStrings();
   if (lockedString !== null && strings[lockedString]) {
-    const name = prettyNote(strings[lockedString].name);
-    el.stringHint.textContent = t('lockedHint', { note: name });
-    el.playLabel.textContent = t('playReference', { note: name });
-    el.playBtn.hidden = false;
+    el.stringHint.textContent = t('lockedHint', { note: prettyNote(strings[lockedString].name) });
   } else {
     el.stringHint.textContent = t('autoHint');
-    el.playBtn.hidden = true;
   }
 }
 
@@ -313,20 +325,49 @@ function renderPegs() {
   });
 }
 
-function playReference() {
-  if (lockedString === null) return;
-  const s = currentStrings()[lockedString];
-  if (!s) return;
-  if (!tone) {
-    const ctx = mic?.context ?? new AudioContext();
-    tone = new ReferenceTone(ctx);
+function ensurePlayer(): ReferencePlayer {
+  if (!player) {
+    player = new ReferencePlayer(mic?.context ?? new AudioContext({ latencyHint: 'interactive' }));
+    player.onEnded = () => {
+      playingString = null;
+      renderPlays();
+    };
   }
-  const seconds = 2.5;
-  tone.play(s.freq, seconds);
-  muteUntil = performance.now() + seconds * 1000 + 250;
+  return player;
+}
+
+/** Load the current strings' sounds in the background (only once audio is allowed). */
+function preloadReferences() {
+  if (!player || isChromatic()) return;
+  player.preload(instrumentId(), currentStrings().map((s) => s.midi), settings.a4);
+}
+
+/** Play (or stop) the reference sound of one string, in the instrument's own voice. */
+async function playString(index: number) {
+  const p = ensurePlayer();
+  if (playingString === index) {
+    p.stop();
+    playingString = null;
+    muteUntil = 0;
+    renderPlays();
+    return;
+  }
+  const s = currentStrings()[index];
+  if (!s) return;
+  playingString = index;
+  renderPlays();
+  // The tuner would hear the speaker: ignore the microphone while the note sounds.
+  muteUntil = performance.now() + 4000;
   engine?.reset();
-  el.playBtn.setAttribute('aria-pressed', 'true');
-  window.setTimeout(() => el.playBtn.setAttribute('aria-pressed', 'false'), seconds * 1000);
+  const seconds = await p.play(instrumentId(), s.midi, settings.a4);
+  if (playingString === index) muteUntil = performance.now() + seconds * 1000 + 250;
+  preloadReferences();
+}
+
+function renderPlays() {
+  el.plays.querySelectorAll<HTMLButtonElement>('.play-string').forEach((b) =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.index) === playingString)),
+  );
 }
 
 async function startMic() {
@@ -340,8 +381,9 @@ async function startMic() {
     mic.setChannel(settings.channel);
     await mic.start(settings.deviceId || undefined);
     engine = new TunerEngine(mic.sampleRate, engineSettings());
-    tone ??= new ReferenceTone(mic.context);
     if (!clip || clip.sampleRate !== mic.sampleRate) clip = new ClipRecorder(mic.sampleRate);
+    ensurePlayer();
+    preloadReferences();
     el.stage.dataset.state = 'listening';
     el.stopBtn.hidden = false;
     el.inputRow.hidden = false;
@@ -363,7 +405,9 @@ async function startMic() {
 
 function stopMic() {
   mic?.stop();
-  tone?.stop(true);
+  player?.stop();
+  playingString = null;
+  renderPlays();
   engine = null;
   reading = null;
   el.stage.dataset.state = 'idle';
@@ -938,13 +982,16 @@ wireStand();
 renderTuningButton();
 el.startBtn.addEventListener('click', () => void startMic());
 el.stopBtn.addEventListener('click', stopMic);
-el.playBtn.addEventListener('click', playReference);
 requestAnimationFrame(loop);
 
 // Expose a hook for automated browser tests (feeds synthetic audio).
 declare global {
   interface Window {
-    __tuner?: { feed(block: Float32Array): void; start(sampleRate: number): void };
+    __tuner?: {
+      feed(block: Float32Array): void;
+      start(sampleRate: number): void;
+      renderReference(instrumentId: string, note: string, a4: number): Promise<{ sampleRate: number; samples: number[]; kind: string }>;
+    };
   }
 }
 window.__tuner = {
@@ -956,5 +1003,12 @@ window.__tuner = {
     if (!engine) return;
     const r = engine.push(block);
     if (r) reading = r;
+  },
+  async renderReference(instrumentId: string, note: string, a4: number) {
+    const p = ensurePlayer();
+    const midi = nameToMidi(note);
+    const x = await p.render(instrumentId, midi, a4);
+    const { chooseSource } = await import('./audio/reference-source');
+    return { sampleRate: p.sampleRate, samples: Array.from(x), kind: chooseSource(instrumentId, midi, a4).kind };
   },
 };

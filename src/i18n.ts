@@ -20,7 +20,7 @@ const en = {
   cents: '{n} cents',
   hz: '{n} Hz',
 
-  autoHint: 'Tap a string to tune only that one.',
+  autoHint: 'Tap a string to tune only that one, or the speaker below it to hear it.',
   lockedHint: 'Tuning {note} only. Tap it again to detect strings automatically.',
   playReference: 'Play {note}',
   stringTuned: '{note} is in tune',
@@ -92,7 +92,7 @@ const en = {
     'Choose your instrument, then play one string at a time. The tuner finds the nearest string on its own.',
     'The needle shows how far off you are. Left of centre is flat: tighten the string. Right is sharp: loosen it.',
     'When the note turns green you are within the in-tune range, and the string gets a green mark.',
-    'To tune a single string, tap it. Tap Play to hear its pitch.',
+    'To tune a single string, tap it. Tap the speaker under a string to hear it played by the instrument, to tune by ear.',
     'Tap the tuning under the instrument tabs to switch to Drop D, open tunings and more, or make your own.',
     'Stand view fills the screen with the note, an arrow and colour you can read from a few metres away. Tap anywhere to close it.',
     'Chromatic mode names any note you play, for other instruments or alternate tunings.',

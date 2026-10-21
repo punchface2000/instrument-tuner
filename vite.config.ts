@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
@@ -19,7 +19,11 @@ function serviceWorker(): Plugin {
       outDir = resolve(cfg.root, cfg.build.outDir);
     },
     closeBundle() {
-      const files = readdirSync(outDir).filter((f) => f !== 'sw.js').sort();
+      // every file in dist (incl. samples/…), so the whole app works offline
+      const files = (readdirSync(outDir, { recursive: true }) as string[])
+        .map((f) => f.split('\\').join('/'))
+        .filter((f) => f !== 'sw.js' && statSync(join(outDir, f)).isFile())
+        .sort();
       const hash = createHash('sha256');
       for (const f of files) hash.update(f).update(readFileSync(join(outDir, f)));
       const version = hash.digest('hex').slice(0, 12);

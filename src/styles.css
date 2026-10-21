@@ -564,23 +564,43 @@ svg .fill {
   text-align: center;
   max-width: 40ch;
 }
-.play-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1.5px solid var(--line);
-  background: var(--surface);
-  border-radius: 999px;
-  padding: 7px 14px;
-  font-size: 0.875rem;
-  font-weight: 500;
+.plays {
+  display: flex;
+  justify-content: center;
+  gap: var(--gap, 8px);
+  margin-top: 4px;
 }
-.play-btn[hidden] {
-  display: none;
+.play-string {
+  --size: min(48px, calc((min(100vw, 520px) - 32px - (var(--n, 6) - 1) * 8px) / var(--n, 6)));
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
 }
-.play-btn[aria-pressed='true'] {
-  border-color: var(--brass);
+.play-string svg {
+  width: 18px;
+  height: 18px;
+}
+.play-string:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.play-string[aria-pressed='true'] {
   color: var(--brass);
+  background: var(--brass-soft);
+}
+.play-string[aria-pressed='true'] .wave {
+  animation: wave 0.9s ease-in-out infinite;
+}
+@keyframes wave {
+  50% {
+    opacity: 0.2;
+  }
 }
 
 /* ---------- tuning picker and editor sheets ---------- */
