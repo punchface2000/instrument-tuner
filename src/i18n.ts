@@ -41,6 +41,18 @@ const en = {
   themeLight: 'Light',
   themeDark: 'Dark',
   resetTuned: 'Clear tuned strings',
+  input: 'Input',
+  channel: 'Channel',
+  channelMix: 'All channels',
+  channelN: 'Input {n}',
+  offlineReady: 'Ready to use offline.',
+  updateReady: 'A new version is ready.',
+  update: 'Update',
+  saveClip: 'Save the last 10 seconds',
+  saveClipHint: 'If the tuner shows something wrong, save right after it happens and send the file to the developer. It contains the sound and the tuner’s settings.',
+  clipNeedsAudio: 'Start tuning first, then save right after the problem.',
+  clipSaved: 'Saved {file}.',
+  version: 'Version {v}',
   lower: 'Lower',
   higher: 'Higher',
 
@@ -57,6 +69,8 @@ const en = {
     'When the note turns green you are within the in-tune range, and the string gets a green mark.',
     'To tune a single string, tap it. Tap Play to hear its pitch.',
     'Chromatic mode names any note you play, for other instruments or alternate tunings.',
+    'Using an audio interface? Pick it under the needle once tuning has started, and choose the input your instrument is plugged into.',
+    'To keep the tuner on your phone: in Safari tap Share, then Add to Home Screen. On a computer, use the install icon in Chrome or Edge’s address bar. After opening it once with internet, it works offline.',
   ],
 };
 

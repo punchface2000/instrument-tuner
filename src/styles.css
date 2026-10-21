@@ -501,6 +501,121 @@ svg .fill {
   color: var(--brass);
 }
 
+/* ---------- input picker ---------- */
+
+.input-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: -12px;
+}
+.input-row[hidden],
+.input-chip[hidden] {
+  display: none;
+}
+.input-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 10px 5px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.input-chip:focus-within {
+  border-color: var(--brass);
+}
+.input-chip svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.input-chip select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 16px 0 0;
+  width: auto;
+  max-width: 15rem;
+  text-overflow: ellipsis;
+  font-size: inherit;
+  color: var(--ink);
+  border-radius: 0;
+  outline: none;
+}
+.input-chip::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.chip-text {
+  white-space: nowrap;
+}
+
+/* ---------- notices ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 10px 8px 10px 16px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.9375rem;
+  box-shadow: var(--shadow);
+}
+.toast[hidden] {
+  display: none;
+}
+.toast-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--brass);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+}
+.version {
+  margin: -12px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.version:empty {
+  display: none;
+}
+
 /* ---------- meters ---------- */
 
 .meters {

@@ -7,6 +7,12 @@
     <meta name="description" content="Tune guitar, ukulele, bass and violin with your microphone, or find any note in chromatic mode." />
     <meta name="theme-color" content="#241612" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#EEF0EE" media="(prefers-color-scheme: light)" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Tuner" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23241612'/%3E%3Cpath d='M16 5v22' stroke='%23D9A441' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M8 21h16' stroke='%23F1E8DA' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -59,6 +65,18 @@
           </div>
         </section>
 
+        <section class="input-row" id="input-row" hidden>
+          <label class="input-chip">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg>
+            <span class="sr-only" id="quick-input-label"></span>
+            <select id="quick-input" aria-labelledby="quick-input-label"></select>
+          </label>
+          <label class="input-chip" id="channel-chip" hidden>
+            <span class="chip-text" id="channel-label"></span>
+            <select id="quick-channel" aria-labelledby="channel-label"></select>
+          </label>
+        </section>
+
         <section class="meters" aria-label="Signal">
           <div class="meter">
             <span class="meter-label" id="level-label"></span>
@@ -71,6 +89,14 @@
           <button class="stop-btn" id="stop-btn" type="button" hidden></button>
         </section>
       </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" hidden>
+      <span id="toast-text"></span>
+      <button type="button" class="toast-btn" id="toast-btn" hidden></button>
+      <button type="button" class="toast-close" id="toast-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
     </div>
 
     <dialog class="sheet" id="settings-dialog" aria-labelledby="settings-title">
@@ -118,7 +144,10 @@
         <div class="sheet-links">
           <button type="button" class="text-btn" id="help-btn"></button>
           <button type="button" class="text-btn" id="reset-tuned"></button>
+          <button type="button" class="text-btn" id="save-clip"></button>
         </div>
+        <p class="field-hint" id="save-clip-hint"></p>
+        <p class="field-hint version" id="app-version"></p>
       </form>
     </dialog>
 

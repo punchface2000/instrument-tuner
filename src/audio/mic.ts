@@ -23,10 +23,26 @@ export class MicInput {
   private workletLoaded = false;
   private useScriptProcessor = false;
   private scriptNode: ScriptProcessorNode | null = null;
+  private channel = -1;
+  /** Called when inputs are plugged in or removed. */
+  onDevicesChanged: (() => void) | null = null;
 
   constructor(private readonly onSamples: (block: Float32Array) => void) {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.context = new Ctx({ latencyHint: 'interactive' });
+    navigator.mediaDevices?.addEventListener?.('devicechange', () => this.onDevicesChanged?.());
+  }
+
+  /** Channels delivered by the current input (2+ on many audio interfaces). */
+  get channelCount(): number {
+    const s = this.stream?.getAudioTracks()[0]?.getSettings();
+    return Math.max(1, s?.channelCount ?? 1);
+  }
+
+  /** Use one channel of a multi-channel input (0-based), or -1 to mix them all. */
+  setChannel(channel: number): void {
+    this.channel = channel;
+    this.node?.port.postMessage({ channel });
   }
 
   get sampleRate(): number {
@@ -56,7 +72,9 @@ export class MicInput {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          channelCount: 1,
+          // Ask for up to 2 channels so a guitar on input 2 of an interface is
+          // reachable; ordinary mics still give 1.
+          channelCount: { ideal: 2 },
         },
       });
     } catch (e) {
@@ -88,8 +106,19 @@ export class MicInput {
     this.stream = stream;
     this.source = this.context.createMediaStreamSource(stream);
     if (this.useScriptProcessor) {
-      const sp = this.context.createScriptProcessor(1024, 1, 1);
-      sp.onaudioprocess = (ev) => this.onSamples(Float32Array.from(ev.inputBuffer.getChannelData(0)));
+      const sp = this.context.createScriptProcessor(1024, 2, 1);
+      sp.onaudioprocess = (ev) => {
+        const b = ev.inputBuffer;
+        const ch = this.channel;
+        if (ch >= 0 && ch < b.numberOfChannels) return this.onSamples(Float32Array.from(b.getChannelData(ch)));
+        const out = Float32Array.from(b.getChannelData(0));
+        for (let c = 1; c < b.numberOfChannels; c++) {
+          const d = b.getChannelData(c);
+          for (let i = 0; i < out.length; i++) out[i] += d[i];
+        }
+        if (b.numberOfChannels > 1) for (let i = 0; i < out.length; i++) out[i] /= b.numberOfChannels;
+        this.onSamples(out);
+      };
       this.source.connect(sp);
       sp.connect(this.context.destination); // required for it to run; it outputs silence
       this.scriptNode = sp;
@@ -97,10 +126,12 @@ export class MicInput {
       this.node = new AudioWorkletNode(this.context, 'capture-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 0,
-        channelCount: 1,
-        channelCountMode: 'explicit',
+        // keep the input's own channels (a mono mic arrives as 1 channel)
+        channelCountMode: 'max',
+        channelInterpretation: 'discrete',
       });
       this.node.port.onmessage = (ev: MessageEvent<Float32Array>) => this.onSamples(ev.data);
+      this.node.port.postMessage({ channel: this.channel });
       this.source.connect(this.node);
     }
   }

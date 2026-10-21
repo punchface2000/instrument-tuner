@@ -12,6 +12,8 @@ export interface Settings {
   view: string;
   theme: Theme;
   deviceId: string;
+  /** Channel of a multi-channel input (0-based), or -1 to mix all channels. */
+  channel: number;
 }
 
 export const A4_MIN = 415;
@@ -27,6 +29,7 @@ export const DEFAULTS: Settings = {
   view: 'guitar',
   theme: 'system',
   deviceId: '',
+  channel: -1,
 };
 
 export function loadSettings(): Settings {
@@ -38,6 +41,7 @@ export function loadSettings(): Settings {
     s.toleranceCents = clamp(Number(s.toleranceCents) || 3, TOLERANCE_MIN, TOLERANCE_MAX);
     if (s.view !== 'chromatic' && !INSTRUMENTS.some((i) => i.id === s.view)) s.view = DEFAULTS.view;
     if (!['system', 'light', 'dark'].includes(s.theme)) s.theme = 'system';
+    if (!Number.isInteger(s.channel) || s.channel < -1 || s.channel > 7) s.channel = -1;
     return s;
   } catch {
     return { ...DEFAULTS };

@@ -14,6 +14,25 @@ A web tuner for guitar, ukulele, bass and violin, plus a chromatic mode. It is a
 
 The microphone only works on `https://` pages or `localhost`.
 
+### Install it as an app (works offline)
+
+| Device | How |
+|---|---|
+| iPhone / iPad | Open the link in **Safari** → Share → **Add to Home Screen**. Open it once from the home screen while online; after that it works offline. |
+| Android | Open in **Chrome** → menu → **Install app**. |
+| Windows / Mac (Chrome or Edge) | Click the **install icon** at the right of the address bar (or menu → *Install Instrument Tuner*). It gets its own window and Start-menu / Dock entry. |
+| Mac (Safari) | **File → Add to Dock**. |
+
+Updates download in the background; the app shows *A new version is ready – Update*.
+
+### Inputs
+
+Once tuning has started, the input picker under the strings switches between microphones and audio interfaces, and the list updates when you plug something in. For interfaces with more than one input, a **Channel** picker appears (e.g. guitar on input 2).
+
+### Report a problem
+
+Settings → **Save the last 10 seconds** saves (or on a phone, shares) a WAV file with the audio and what the tuner showed. Send that file along with the problem; it replays through the [session tests](uxtest/).
+
 ## How it works
 
 Microphone audio passes through a low-pass pre-filter and then into a YIN pitch detector, which gives the frequency and a confidence value. The app compares that frequency to the nearest string or note and shows the deviation in cents.
@@ -31,6 +50,8 @@ Microphone audio passes through a low-pass pre-filter and then into a YIN pitch 
 | Reference tone | [`src/audio/reference-tone.ts`](src/audio/reference-tone.ts) |
 | UI wiring | [`src/main.ts`](src/main.ts), [`index.html`](index.html), [`src/styles.css`](src/styles.css) |
 | All user-facing text (for translations) | [`src/i18n.ts`](src/i18n.ts) |
+| Offline support (service worker registration, updates) | [`src/pwa.ts`](src/pwa.ts), [`src/sw-template.js`](src/sw-template.js), [`public/`](public/) |
+| Troubleshooting clips | [`src/audio/clip.ts`](src/audio/clip.ts) |
 
 ### Adding an instrument
 

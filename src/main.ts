@@ -7,6 +7,8 @@ import '@fontsource/instrument-sans/latin-600';
 import './styles.css';
 import { MicInput, MicError } from './audio/mic';
 import { ReferenceTone } from './audio/reference-tone';
+import { ClipRecorder, deliverFile } from './audio/clip';
+import { registerServiceWorker, offlineVersion } from './pwa';
 import { TunerEngine, type EngineSettings, type Reading } from './engine';
 import { INSTRUMENTS, findInstrument, resolveStrings } from './instruments';
 import { t, tList } from './i18n';
@@ -24,6 +26,7 @@ let tone: ReferenceTone | null = null;
 let reading: Reading | null = null;
 let muteUntil = 0; // ignore the mic while a reference tone plays
 let wakeLock: { release(): Promise<void> } | null = null;
+let clip: ClipRecorder | null = null;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const el = {
@@ -65,6 +68,16 @@ const el = {
   micSelect: $<HTMLSelectElement>('mic-select'),
   themeSeg: $('theme-seg'),
   resetTuned: $<HTMLButtonElement>('reset-tuned'),
+  inputRow: $('input-row'),
+  quickInput: $<HTMLSelectElement>('quick-input'),
+  channelChip: $('channel-chip'),
+  quickChannel: $<HTMLSelectElement>('quick-channel'),
+  toast: $('toast'),
+  toastText: $('toast-text'),
+  toastBtn: $<HTMLButtonElement>('toast-btn'),
+  toastClose: $<HTMLButtonElement>('toast-close'),
+  saveClip: $<HTMLButtonElement>('save-clip'),
+  appVersion: $('app-version'),
 };
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -129,6 +142,10 @@ function buildText() {
   el.a4Down.setAttribute('aria-label', t('lower'));
   el.a4Up.setAttribute('aria-label', t('higher'));
   el.resetTuned.textContent = t('resetTuned');
+  el.saveClip.textContent = t('saveClip');
+  $('save-clip-hint').textContent = t('saveClipHint');
+  $('quick-input-label').textContent = t('input');
+  $('channel-label').textContent = t('channel');
   const list = $('help-list');
   list.replaceChildren(...tList('helpBody').map((line) => Object.assign(document.createElement('li'), { textContent: line })));
 }
@@ -263,12 +280,18 @@ async function startMic() {
   el.error.hidden = true;
   el.startBtn.disabled = true;
   try {
-    mic ??= new MicInput(onSamples);
+    if (!mic) {
+      mic = new MicInput(onSamples);
+      mic.onDevicesChanged = () => void fillMicList();
+    }
+    mic.setChannel(settings.channel);
     await mic.start(settings.deviceId || undefined);
     engine = new TunerEngine(mic.sampleRate, engineSettings());
     tone ??= new ReferenceTone(mic.context);
+    if (!clip || clip.sampleRate !== mic.sampleRate) clip = new ClipRecorder(mic.sampleRate);
     el.stage.dataset.state = 'listening';
     el.stopBtn.hidden = false;
+    el.inputRow.hidden = false;
     void requestWakeLock();
     void fillMicList();
   } catch (e) {
@@ -292,6 +315,7 @@ function stopMic() {
   reading = null;
   el.stage.dataset.state = 'idle';
   el.stopBtn.hidden = true;
+  el.inputRow.hidden = true;
   void wakeLock?.release().catch(() => {});
   wakeLock = null;
   render();
@@ -316,9 +340,13 @@ function showError(e: unknown) {
 
 function onSamples(block: Float32Array) {
   if (!engine) return;
+  clip?.push(block);
   if (performance.now() < muteUntil) return;
   const r = engine.push(block);
-  if (r) reading = r;
+  if (r) {
+    reading = r;
+    clip?.note({ active: r.active, held: r.held, note: r.targetName, cents: r.cents, freq: r.freq, inTune: r.inTune });
+  }
 }
 
 async function requestWakeLock() {
@@ -389,21 +417,46 @@ function setA4(v: number) {
   buildPegs();
 }
 
+/** Fill both input pickers (settings sheet and main screen) and the channel picker. */
 async function fillMicList() {
   const devices = await MicInput.listInputs();
-  const current = settings.deviceId || mic?.currentDeviceId || '';
-  const options = [
-    new Option(t('microphoneDefault'), ''),
-    ...devices.filter((d) => d.id && d.id !== 'default').map((d) => new Option(d.label, d.id)),
-  ];
-  el.micSelect.replaceChildren(...options);
-  el.micSelect.value = devices.some((d) => d.id === current) && settings.deviceId ? current : '';
+  const named = devices.filter((d) => d.id && d.id !== 'default' && d.id !== 'communications');
+  // A remembered input that has been unplugged: fall back to the default one.
+  if (settings.deviceId && devices.length && !named.some((d) => d.id === settings.deviceId)) {
+    settings.deviceId = '';
+    persist();
+    if (mic?.running) void startMic();
+  }
+  for (const sel of [el.micSelect, el.quickInput]) {
+    sel.replaceChildren(new Option(t('microphoneDefault'), ''), ...named.map((d) => new Option(d.label, d.id)));
+    sel.value = settings.deviceId;
+  }
+  renderChannels();
+}
+
+function renderChannels() {
+  const n = mic?.running ? mic.channelCount : 1;
+  el.channelChip.hidden = n < 2;
+  if (n < 2) return;
+  const opts = [new Option(t('channelMix'), '-1')];
+  for (let c = 0; c < n; c++) opts.push(new Option(t('channelN', { n: c + 1 }), String(c)));
+  el.quickChannel.replaceChildren(...opts);
+  el.quickChannel.value = String(settings.channel < n ? settings.channel : -1);
+}
+
+function selectInput(deviceId: string) {
+  settings.deviceId = deviceId;
+  persist();
+  el.micSelect.value = deviceId;
+  el.quickInput.value = deviceId;
+  if (mic?.running) void startMic();
 }
 
 function wireSettings() {
   el.settingsBtn.addEventListener('click', () => {
     renderSettings();
     void fillMicList();
+    void offlineVersion().then((v) => (el.appVersion.textContent = v ? t('version', { v }) : ''));
     el.settingsDialog.showModal();
   });
   el.helpBtn.addEventListener('click', () => {
@@ -424,16 +477,63 @@ function wireSettings() {
     renderSettings();
     renderZone();
   });
-  el.micSelect.addEventListener('change', () => {
-    settings.deviceId = el.micSelect.value;
+  el.micSelect.addEventListener('change', () => selectInput(el.micSelect.value));
+  el.quickInput.addEventListener('change', () => selectInput(el.quickInput.value));
+  el.quickChannel.addEventListener('change', () => {
+    settings.channel = Number(el.quickChannel.value);
     persist();
-    if (mic?.running) void startMic();
+    mic?.setChannel(settings.channel);
+    engine?.reset();
   });
+  el.saveClip.addEventListener('click', () => void saveClip());
   el.resetTuned.addEventListener('click', () => {
     engine?.clearTuned();
     renderPegs();
   });
 }
+
+// ---------- notices, offline support, troubleshooting clips ----------
+
+let toastTimer: number | undefined;
+function showToast(text: string, action?: { label: string; run: () => void }, seconds = 6) {
+  window.clearTimeout(toastTimer);
+  el.toastText.textContent = text;
+  el.toastBtn.hidden = !action;
+  if (action) {
+    el.toastBtn.textContent = action.label;
+    el.toastBtn.onclick = () => {
+      el.toast.hidden = true;
+      action.run();
+    };
+  }
+  el.toast.hidden = false;
+  if (!action) toastTimer = window.setTimeout(() => (el.toast.hidden = true), seconds * 1000);
+}
+el.toastClose.addEventListener('click', () => (el.toast.hidden = true));
+
+async function saveClip() {
+  if (!clip?.hasAudio) {
+    showToast(t('clipNeedsAudio'));
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const file = `tuner-clip-${stamp}.wav`;
+  const blob = clip.toWav({
+    app: 'instrument-tuner',
+    version: await offlineVersion(),
+    savedAt: new Date().toISOString(),
+    settings: { ...engineSettings(), view: settings.view, channel: settings.channel },
+    input: { label: el.quickInput.selectedOptions[0]?.textContent ?? '', channels: mic?.channelCount ?? 1 },
+    userAgent: navigator.userAgent,
+  });
+  const how = await deliverFile(blob, file);
+  if (how !== 'cancelled') showToast(t('clipSaved', { file }));
+}
+
+registerServiceWorker({
+  onOfflineReady: () => showToast(t('offlineReady')),
+  onUpdateReady: (apply) => showToast(t('updateReady'), { label: t('update'), run: apply }),
+});
 
 // ---------- render loop ----------
 
